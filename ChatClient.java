@@ -12,10 +12,16 @@ public class ChatClient {
     JFrame frame = new JFrame("Chat Client");
     private JTextField chatBox = new JTextField();
     private JTextArea chatArea = new JTextArea();
-    // --- Fim das variáveis relacionadas coma interface gráfica
+    // --- Fim das variáveis relacionadas com a interface gráfica
 
-    // Se for necessário adicionar variáveis ao objecto ChatClient, devem
-    // ser colocadas aqui
+    String server;
+    int port;
+    
+    //Socket
+    BufferedReader inFromServer;
+    DataOutputStream outToServer;
+    Socket clientSocket;
+
 
 
 
@@ -29,6 +35,10 @@ public class ChatClient {
     
     // Construtor
     public ChatClient(String server, int port) throws IOException {
+
+
+        this.server = server;
+        this.port = port;
 
         // Inicialização da interface gráfica --- * NÃO MODIFICAR *
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -62,28 +72,30 @@ public class ChatClient {
 
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
-
-
-
     }
 
 
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        // PREENCHER AQUI com código que envia a mensagem ao servidor
-
-
-
+        outToServer =
+         new DataOutputStream(clientSocket.getOutputStream());
+        inFromServer =
+         new BufferedReader(new
+               InputStreamReader(clientSocket.getInputStream()));
+        outToServer.writeBytes(message + '\n');
+        String messageFromServer = inFromServer.readLine();
+        printMessage(messageFromServer + '\n');
+        clientSocket.close();
+        //Enviar mensagem ao servidor
+        //Receber resposta do servidor
+        //printMessage(resposta do servidor);
     }
 
     
     // Método principal do objecto
     public void run() throws IOException {
-        // PREENCHER AQUI
-
-
-
+        clientSocket = new Socket(server, port);
     }
     
 
