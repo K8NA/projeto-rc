@@ -14,6 +14,8 @@ public class ChatServer
   static private final Charset charset = Charset.forName("UTF8");
   static private final CharsetDecoder decoder = charset.newDecoder();
 
+  static private String messageFromClient = "";
+
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -84,6 +86,7 @@ public class ChatServer
               sc = (SocketChannel)key.channel();
               boolean ok = processInput( sc );
 
+
               // If the connection is dead, remove it from the selector
               // and close it
               if (!ok) {
@@ -91,6 +94,8 @@ public class ChatServer
 
                 Socket s = null;
                 try {
+
+
                   s = sc.socket();
                   System.out.println( "Closing connection to "+s );
                   s.close();
@@ -124,38 +129,47 @@ public class ChatServer
 
   // Just read the message from the socket and send it to stdout
   static private boolean processInput( SocketChannel sc ) throws IOException {
-       // Read the message to the buffer
+  
+
+    // Read the message to the buffer
     buffer.clear();
-    sc.read( buffer );
+    int bytes = sc.read( buffer );
     buffer.flip();
 
     // If no data, close the connection
     if (buffer.limit()==0) {
+      messageFromClient = "";
       return false;
     }
 
-    // Decode and print the message to stdout
-    String message = decoder.decode(buffer).toString();
-    System.out.print(message);
-
-    // Para cada cliente manter um objeto para o seu estado, sala corrente, nome de utilizador - ???
-    // selectOutput(message); //Resposta do servidor ao pedido do cliente
-    // Enviar resposta ao cliente/clientes
-
-    // Write message
-    ByteBuffer buf = ByteBuffer.allocate(48);
-    String capitalizedSentence = message.toUpperCase();
-    //System.out.print(capitalizedSentence);
-
-    buf.clear();
-    buf.put(capitalizedSentence.getBytes());
-
-    buf.flip();
-
-    while(buf.hasRemaining()) {
-      sc.write(buf);
+    for(int i=0; i<bytes; i++) {
+      byte cur = buffer.get(i);
+      if(cur == 10) {
+        selectOutput(messageFromClient,sc);
+      }
+      messageFromClient += (char) cur;
     }
-
     return true;
+  }
+
+  static private void selectOutput(String message, SocketChannel sc) throws IOException{
+    String[] commands = message.split(" ");
+    String command = commands[0];
+
+    if(command.equals("/nick")) {
+      System.out.println("NICK");
+    } 
+    else if(command.equals("/join")) {
+      System.out.println("JOIN");
+    } 
+    else if(command.equals("/leave")) {
+      System.out.println("LEAVE");
+    }
+    else if(command.equals("/bye")) {
+      System.out.println("BYE");
+    }
+    else 
+      System.out.println("OTHER");
+
   }
 }

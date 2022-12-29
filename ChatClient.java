@@ -84,8 +84,8 @@ public class ChatClient {
          new BufferedReader(new
                InputStreamReader(clientSocket.getInputStream()));
         outToServer.writeBytes(message + '\n');
-        String messageFromServer = inFromServer.readLine();
-        printMessage(messageFromServer + '\n');
+        //String messageFromServer = inFromServer.readLine();
+        //printMessage(messageFromServer + '\n');
         clientSocket.close();
         //Enviar mensagem ao servidor
         //Receber resposta do servidor
