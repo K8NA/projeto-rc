@@ -14,13 +14,16 @@ public class ChatServer
   static private final Charset charset = Charset.forName("UTF8");
   static private final CharsetDecoder decoder = charset.newDecoder();
 
+
   static private String messageFromClient = "";
+
+  static private Selector selector;
 
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
     int port = Integer.parseInt( args[0] );
-    
+
     try {
       // Instead of creating a ServerSocket, create a ServerSocketChannel
       ServerSocketChannel ssc = ServerSocketChannel.open();
@@ -35,7 +38,7 @@ public class ChatServer
       ss.bind( isa );
 
       // Create a new Selector for selecting
-      Selector selector = Selector.open();
+      selector = Selector.open();
 
       // Register the ServerSocketChannel, so we can listen for incoming
       // connections
@@ -68,13 +71,15 @@ public class ChatServer
             Socket s = ss.accept();
             System.out.println( "Got connection from "+s );
 
+
             // Make sure to make it non-blocking, so we can use a selector
             // on it.
             SocketChannel sc = s.getChannel();
             sc.configureBlocking( false );
 
             // Register it with the selector, for reading
-            sc.register( selector, SelectionKey.OP_READ );
+            sc.register( selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+
 
           } else if (key.isReadable()) {
 
@@ -94,8 +99,6 @@ public class ChatServer
 
                 Socket s = null;
                 try {
-
-
                   s = sc.socket();
                   System.out.println( "Closing connection to "+s );
                   s.close();
@@ -129,7 +132,6 @@ public class ChatServer
 
   // Just read the message from the socket and send it to stdout
   static private boolean processInput( SocketChannel sc ) throws IOException {
-  
 
     // Read the message to the buffer
     buffer.clear();
@@ -138,14 +140,16 @@ public class ChatServer
 
     // If no data, close the connection
     if (buffer.limit()==0) {
-      messageFromClient = "";
       return false;
     }
 
     for(int i=0; i<bytes; i++) {
       byte cur = buffer.get(i);
       if(cur == 10) {
+        System.out.println(messageFromClient);
         selectOutput(messageFromClient,sc);
+        messageFromClient = "";
+        break;
       }
       messageFromClient += (char) cur;
     }
@@ -158,18 +162,46 @@ public class ChatServer
 
     if(command.equals("/nick")) {
       System.out.println("NICK");
-    } 
+    }
     else if(command.equals("/join")) {
       System.out.println("JOIN");
-    } 
+    }
     else if(command.equals("/leave")) {
       System.out.println("LEAVE");
     }
     else if(command.equals("/bye")) {
       System.out.println("BYE");
     }
-    else 
+    else
       System.out.println("OTHER");
+  }
 
+  static private void sendToOne(String message, SocketChannel sc) throws IOException {
+
+    try {
+      ByteBuffer buf = ByteBuffer.allocate(4096);
+
+      buf.clear();
+      buf.put(message.getBytes());
+
+      buf.flip();
+
+
+      while(buf.hasRemaining()) {
+        sc.write(buf);
+      }
+    } catch(IOException e) { System.out.println( e ); }
+  }
+
+  static private void sendToAll(String message) throws IOException{
+    ByteBuffer msgBuf=ByteBuffer.wrap(message.getBytes());
+    for(SelectionKey key : selector.keys()) {
+			if(key.isValid() && key.channel() instanceof SocketChannel) {
+				SocketChannel sch=(SocketChannel) key.channel();
+        System.out.println(sch.socket());
+				sch.write(msgBuf);
+				msgBuf.rewind();
+			}
+		}
   }
 }

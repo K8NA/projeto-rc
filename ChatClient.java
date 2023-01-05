@@ -14,9 +14,6 @@ public class ChatClient {
     private JTextArea chatArea = new JTextArea();
     // --- Fim das variáveis relacionadas com a interface gráfica
 
-    String server;
-    int port;
-    
     //Socket
     BufferedReader inFromServer;
     DataOutputStream outToServer;
@@ -25,20 +22,17 @@ public class ChatClient {
 
 
 
-    
+
     // Método a usar para acrescentar uma string à caixa de texto
     // * NÃO MODIFICAR *
     public void printMessage(final String message) {
         chatArea.append(message);
     }
 
-    
+
     // Construtor
     public ChatClient(String server, int port) throws IOException {
 
-
-        this.server = server;
-        this.port = port;
 
         // Inicialização da interface gráfica --- * NÃO MODIFICAR *
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -78,31 +72,40 @@ public class ChatClient {
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
+      outToServer =
+       new DataOutputStream(clientSocket.getOutputStream());
+      inFromServer =
+       new BufferedReader(new
+             InputStreamReader(clientSocket.getInputStream()));
+
+      outToServer.writeBytes(message + '\n');
+    }
+
+
+    // Método principal do objecto
+    public void run() throws IOException {
+
         outToServer =
          new DataOutputStream(clientSocket.getOutputStream());
         inFromServer =
          new BufferedReader(new
                InputStreamReader(clientSocket.getInputStream()));
-        outToServer.writeBytes(message + '\n');
-        //String messageFromServer = inFromServer.readLine();
-        //printMessage(messageFromServer + '\n');
-        clientSocket.close();
-        //Enviar mensagem ao servidor
-        //Receber resposta do servidor
-        //printMessage(resposta do servidor);
+
+         try {
+           while(true) {
+            String messageFromServer = inFromServer.readLine();
+            printMessage(messageFromServer + "\n");
+          }
+         }
+         catch(IOException e) { System.out.println( e ); }
     }
 
-    
-    // Método principal do objecto
-    public void run() throws IOException {
-        clientSocket = new Socket(server, port);
-    }
-    
 
     // Instancia o ChatClient e arranca-o invocando o seu método run()
     // * NÃO MODIFICAR *
     public static void main(String[] args) throws IOException {
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
+        client.clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
         client.run();
     }
 
