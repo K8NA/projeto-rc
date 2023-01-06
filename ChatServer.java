@@ -4,6 +4,8 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.nio.charset.*;
 import java.util.*;
+import java.lang.reflect.Field;
+
 
 public class ChatServer
 {
@@ -19,6 +21,14 @@ public class ChatServer
 
   static private Selector selector;
 
+  static private ArrayList<String> nicks = new ArrayList<String>(); // save used nicks
+  static private TreeMap<String, ArrayList<String>> rooms = new TreeMap<String, ArrayList<String>>(); //save nicks per room
+
+
+  // Client states
+  static private final int init = 0;
+  static private final int inside = 1;
+  static private final int outside = 2;
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -78,7 +88,7 @@ public class ChatServer
             sc.configureBlocking( false );
 
             // Register it with the selector, for reading
-            sc.register( selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+            sc.register( selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, new Client("",init,""));
 
 
           } else if (key.isReadable()) {
@@ -89,7 +99,7 @@ public class ChatServer
 
               // It's incoming data on a connection -- process it
               sc = (SocketChannel)key.channel();
-              boolean ok = processInput( sc );
+              boolean ok = processInput( sc, key );
 
 
               // If the connection is dead, remove it from the selector
@@ -131,7 +141,7 @@ public class ChatServer
 
 
   // Just read the message from the socket and send it to stdout
-  static private boolean processInput( SocketChannel sc ) throws IOException {
+  static private boolean processInput( SocketChannel sc, SelectionKey key ) throws IOException {
 
     // Read the message to the buffer
     buffer.clear();
@@ -146,8 +156,8 @@ public class ChatServer
     for(int i=0; i<bytes; i++) {
       byte cur = buffer.get(i);
       if(cur == 10) {
-        System.out.println(messageFromClient);
-        selectOutput(messageFromClient,sc);
+        //System.out.println(messageFromClient);
+        selectOutput(messageFromClient,sc, key);
         messageFromClient = "";
         break;
       }
@@ -156,12 +166,12 @@ public class ChatServer
     return true;
   }
 
-  static private void selectOutput(String message, SocketChannel sc) throws IOException{
+  static private void selectOutput(String message, SocketChannel sc, SelectionKey key) throws IOException{
     String[] commands = message.split(" ");
     String command = commands[0];
 
     if(command.equals("/nick")) {
-      System.out.println("NICK");
+      handleNick(commands[1], sc, key);
     }
     else if(command.equals("/join")) {
       System.out.println("JOIN");
@@ -175,6 +185,60 @@ public class ChatServer
     else
       System.out.println("OTHER");
   }
+
+  static private void handleNick(String newNick, SocketChannel sc, SelectionKey key) throws IOException{
+    Client cl = getClient(key);
+
+    if(nicks.contains(newNick)) {
+      sendToOne("ERROR\n",sc);
+    } else {
+        if(cl.state == outside || cl.state == inside) {
+          nicks.remove(cl.nick);
+        }
+
+        nicks.add(newNick);
+
+        if(cl.state == outside || cl.state == init) {
+          key.attach(new Client(newNick,outside,cl.room));
+        } else {
+          key.attach(new Client(newNick,inside,cl.room));
+        }
+
+        sendToOne("OK\n",sc);
+        
+        if(cl.state == inside) {
+          sendToOthers("NEWNICK " + cl.nick + " " + newNick + "\n", cl);
+        }
+    }
+  }
+
+  static private Client getClient(SelectionKey key) throws IOException{
+    String nick="";
+    int state=0;
+    String room="";
+
+    Object cl = key.attachment();
+    
+    Class c = cl.getClass();
+    for (Field f : c.getDeclaredFields()) {
+      f.setAccessible(true);
+      try {
+        //System.out.println(f.getName() + "= " + f.get(cl));
+        if(f.getName().equals("nick")) {
+          nick = f.get(cl).toString();
+       } else if(f.getName().equals("state")) {
+          state = Integer.parseInt(f.get(cl).toString());
+       } else
+          room = f.get(cl).toString();
+      } catch (Exception e) {
+          e.printStackTrace();
+      }
+    }
+
+    Client client = new Client(nick,state,room);
+    return client;
+  }
+
 
   static private void sendToOne(String message, SocketChannel sc) throws IOException {
 
@@ -193,15 +257,31 @@ public class ChatServer
     } catch(IOException e) { System.out.println( e ); }
   }
 
-  static private void sendToAll(String message) throws IOException{
+  static private void sendToOthers(String message, Client cl1) throws IOException{
+    
     ByteBuffer msgBuf=ByteBuffer.wrap(message.getBytes());
     for(SelectionKey key : selector.keys()) {
 			if(key.isValid() && key.channel() instanceof SocketChannel) {
-				SocketChannel sch=(SocketChannel) key.channel();
-        System.out.println(sch.socket());
-				sch.write(msgBuf);
-				msgBuf.rewind();
+        Client cl2 = getClient(key);
+        if(cl2.room.equals(cl1.room)) { //Message to Others    
+          SocketChannel sch=(SocketChannel) key.channel();
+          System.out.println(sch.socket());
+          sch.write(msgBuf);
+          msgBuf.rewind();
+        }
 			}
 		}
+  }
+}
+
+class Client {
+  int state;
+  String nick;
+  String room;
+
+  Client(String nick, int state, String room) {
+    this.nick  = nick;
+    this.state = state;
+    this.room  = room; 
   }
 }
