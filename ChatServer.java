@@ -257,13 +257,13 @@ public class ChatServer
     } catch(IOException e) { System.out.println( e ); }
   }
 
-  static private void sendToOthers(String message, Client cl1) throws IOException{
-    
+  static private void sendToOthers(String message, CLient cl1) throws IOException{
+
     ByteBuffer msgBuf=ByteBuffer.wrap(message.getBytes());
     for(SelectionKey key : selector.keys()) {
 			if(key.isValid() && key.channel() instanceof SocketChannel) {
         Client cl2 = getClient(key);
-        if(cl2.room.equals(cl1.room)) { //Message to Others    
+        if(cl2.room.equals(cl1.room) && !cl2.nick.equals(cl1.nick)) { //Message to Others    
           SocketChannel sch=(SocketChannel) key.channel();
           System.out.println(sch.socket());
           sch.write(msgBuf);
