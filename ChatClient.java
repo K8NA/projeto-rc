@@ -19,10 +19,6 @@ public class ChatClient {
     DataOutputStream outToServer;
     Socket clientSocket;
 
-
-
-
-
     // Método a usar para acrescentar uma string à caixa de texto
     // * NÃO MODIFICAR *
     public void printMessage(final String message) {
@@ -32,7 +28,6 @@ public class ChatClient {
 
     // Construtor
     public ChatClient(String server, int port) throws IOException {
-
 
         // Inicialização da interface gráfica --- * NÃO MODIFICAR *
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -68,7 +63,6 @@ public class ChatClient {
         // construtor, deve ser colocado aqui
     }
 
-
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
@@ -77,7 +71,6 @@ public class ChatClient {
       inFromServer =
        new BufferedReader(new
              InputStreamReader(clientSocket.getInputStream()));
-
       outToServer.writeBytes(message + '\n');
     }
 

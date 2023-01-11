@@ -7,8 +7,8 @@ import java.util.*;
 import java.lang.reflect.Field;
 
 
-public class ChatServer
-{
+public class ChatServer {
+
   // A pre-allocated buffer for the received data
   static private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
 
@@ -16,14 +16,11 @@ public class ChatServer
   static private final Charset charset = Charset.forName("UTF8");
   static private final CharsetDecoder decoder = charset.newDecoder();
 
-
   static private String messageFromClient = "";
-
   static private Selector selector;
-
   static private ArrayList<String> nicks = new ArrayList<String>(); // save used nicks
-  static private TreeMap<String, ArrayList<String>> rooms = new TreeMap<String, ArrayList<String>>(); //save nicks per room
-
+  static private TreeMap<String, ArrayList<String>> rooms =
+                        new TreeMap<String, ArrayList<String>>(); //save nicks per room
 
   // Client states
   static private final int init = 0;
@@ -53,7 +50,7 @@ public class ChatServer
       // Register the ServerSocketChannel, so we can listen for incoming
       // connections
       ssc.register( selector, SelectionKey.OP_ACCEPT );
-      System.out.println( "Listening on port "+port );
+      System.out.println( "Listening on port " + port );
 
       while (true) {
         // See if we've had any activity -- either an incoming connection,
@@ -76,19 +73,19 @@ public class ChatServer
           // What kind of activity is it?
           if (key.isAcceptable()) {
 
-            // It's an incoming connection.  Register this socket with
+            // It's an incoming connection, register this socket with
             // the Selector so we can listen for input on it
             Socket s = ss.accept();
-            System.out.println( "Got connection from "+s );
+            System.out.println( "Got connection from " + s );
 
-
-            // Make sure to make it non-blocking, so we can use a selector
-            // on it.
+            // Make sure to make it non-blocking,
+            // so we can use a selector on it
             SocketChannel sc = s.getChannel();
             sc.configureBlocking( false );
 
             // Register it with the selector, for reading
-            sc.register( selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, new Client("",init,""));
+            sc.register( selector, SelectionKey.OP_READ |
+                         SelectionKey.OP_WRITE, new Client("",init,""));
 
 
           } else if (key.isReadable()) {
@@ -101,7 +98,6 @@ public class ChatServer
               sc = (SocketChannel)key.channel();
               boolean ok = processInput( sc, key );
 
-
               // If the connection is dead, remove it from the selector
               // and close it
               if (!ok) {
@@ -110,10 +106,10 @@ public class ChatServer
                 Socket s = null;
                 try {
                   s = sc.socket();
-                  System.out.println( "Closing connection to "+s );
+                  System.out.println( "Closing connection to " + s );
                   s.close();
                 } catch( IOException ie ) {
-                  System.err.println( "Error closing socket "+s+": "+ie );
+                  System.err.println( "Error closing socket " + s + ": " + ie );
                 }
               }
 
@@ -157,7 +153,7 @@ public class ChatServer
       byte cur = buffer.get(i);
       if(cur == 10) {
         //System.out.println(messageFromClient);
-        selectOutput(messageFromClient,sc, key);
+        selectOutput(messageFromClient, sc, key);
         messageFromClient = "";
         break;
       }
@@ -174,19 +170,19 @@ public class ChatServer
       handleNick(commands[1], sc, key);
     }
     else if(command.equals("/join")) {
-      System.out.println("JOIN");
+      handleJoin(commands[1], sc, key);
     }
     else if(command.equals("/leave")) {
-      System.out.println("LEAVE");
+      System.out.println("LEFT ");
     }
     else if(command.equals("/bye")) {
-      System.out.println("BYE");
+      handleBye(sc, key);
     }
     else
       System.out.println("OTHER");
   }
 
-  static private void handleNick(String newNick, SocketChannel sc, SelectionKey key) throws IOException{
+  static private void handleNick(String newNick, SocketChannel sc, SelectionKey key) throws IOException {
     Client cl = getClient(key);
 
     if(nicks.contains(newNick)) {
@@ -204,21 +200,53 @@ public class ChatServer
           key.attach(new Client(newNick,inside,cl.room));
         }
 
-        sendToOne("OK\n",sc);
-        
+        sendToOne("OK\n", sc);
+
         if(cl.state == inside) {
           sendToOthers("NEWNICK " + cl.nick + " " + newNick + "\n", cl);
         }
     }
   }
 
+  static private void handleJoin(String newRoom, SocketChannel sc, SelectionKey key) throws IOException {
+    Client cl = getClient(key);
+
+    if (cl.state == outside) {
+      sendToOne("OK\n", sc);
+      cl.room = newRoom;
+      cl.state = inside;
+      sendToOthers("JOINED " + cl.nick + "\n", cl);
+    }
+
+    if (cl.state == inside) {
+      sendToOne("OK\n", sc);
+      sendToOthers("LEFT " + cl.nick + "\n", cl);
+      cl.room = newRoom;
+      sendToOthers("JOINED " + cl.nick + "\n", cl);
+    }
+
+  }
+
+  static private void handleBye(SocketChannel sc, SelectionKey key) throws IOException {
+    Client cl = getClient(key);
+
+    sendToOne("BYE\n", sc);
+
+    if (cl.state == inside) {
+      sendToOthers("LEFT " + cl.nick + "\n", cl);
+    }
+
+    sc.close();
+
+  }
+
   static private Client getClient(SelectionKey key) throws IOException{
-    String nick="";
-    int state=0;
-    String room="";
+    String nick = "";
+    int state = 0;
+    String room = "";
 
     Object cl = key.attachment();
-    
+
     Class c = cl.getClass();
     for (Field f : c.getDeclaredFields()) {
       f.setAccessible(true);
@@ -226,9 +254,9 @@ public class ChatServer
         //System.out.println(f.getName() + "= " + f.get(cl));
         if(f.getName().equals("nick")) {
           nick = f.get(cl).toString();
-       } else if(f.getName().equals("state")) {
+        } else if(f.getName().equals("state")) {
           state = Integer.parseInt(f.get(cl).toString());
-       } else
+        } else
           room = f.get(cl).toString();
       } catch (Exception e) {
           e.printStackTrace();
@@ -241,15 +269,12 @@ public class ChatServer
 
 
   static private void sendToOne(String message, SocketChannel sc) throws IOException {
-
     try {
       ByteBuffer buf = ByteBuffer.allocate(4096);
 
       buf.clear();
       buf.put(message.getBytes());
-
       buf.flip();
-
 
       while(buf.hasRemaining()) {
         sc.write(buf);
@@ -257,14 +282,14 @@ public class ChatServer
     } catch(IOException e) { System.out.println( e ); }
   }
 
-  static private void sendToOthers(String message, CLient cl1) throws IOException{
+  static private void sendToOthers(String message, Client cl1) throws IOException{
+    ByteBuffer msgBuf = ByteBuffer.wrap(message.getBytes());
 
-    ByteBuffer msgBuf=ByteBuffer.wrap(message.getBytes());
     for(SelectionKey key : selector.keys()) {
 			if(key.isValid() && key.channel() instanceof SocketChannel) {
         Client cl2 = getClient(key);
-        if(cl2.room.equals(cl1.room) && !cl2.nick.equals(cl1.nick)) { //Message to Others    
-          SocketChannel sch=(SocketChannel) key.channel();
+        if(cl2.room.equals(cl1.room) && !cl2.nick.equals(cl1.nick)) { //Message to Others
+          SocketChannel sch = (SocketChannel) key.channel();
           System.out.println(sch.socket());
           sch.write(msgBuf);
           msgBuf.rewind();
@@ -272,16 +297,17 @@ public class ChatServer
 			}
 		}
   }
+
 }
 
 class Client {
-  int state;
+  int    state;
   String nick;
   String room;
 
   Client(String nick, int state, String room) {
     this.nick  = nick;
     this.state = state;
-    this.room  = room; 
+    this.room  = room;
   }
 }
