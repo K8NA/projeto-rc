@@ -19,6 +19,10 @@ public class ChatClient {
     DataOutputStream outToServer;
     Socket clientSocket;
 
+
+
+
+
     // Método a usar para acrescentar uma string à caixa de texto
     // * NÃO MODIFICAR *
     public void printMessage(final String message) {
@@ -28,6 +32,7 @@ public class ChatClient {
 
     // Construtor
     public ChatClient(String server, int port) throws IOException {
+
 
         // Inicialização da interface gráfica --- * NÃO MODIFICAR *
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -63,6 +68,7 @@ public class ChatClient {
         // construtor, deve ser colocado aqui
     }
 
+
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
@@ -71,7 +77,26 @@ public class ChatClient {
       inFromServer =
        new BufferedReader(new
              InputStreamReader(clientSocket.getInputStream()));
-      outToServer.writeBytes(message + '\n');
+
+      if(isCommand(message)) {
+        outToServer.writeBytes(message + '\n');
+      } else if(message.charAt(0) == '/') {
+        outToServer.writeBytes("/" + message + "\n");
+      } else
+        outToServer.writeBytes(message + "\n");
+
+    }
+
+    public boolean isCommand(String message) {
+        String[] commands = message.split(" ");
+        String command = commands[0];
+
+        return command.equals("/nick") ||
+               command.equals("/join") ||
+               command.equals("/bye")  ||
+               command.equals("/leave");
+               
+
     }
 
 
@@ -88,6 +113,10 @@ public class ChatClient {
            while(true) {
             String messageFromServer = inFromServer.readLine();
             printMessage(messageFromServer + "\n");
+            if(messageFromServer.equals("BYE")) {
+                clientSocket.close();
+                break;
+            }
           }
          }
          catch(IOException e) { System.out.println( e ); }
