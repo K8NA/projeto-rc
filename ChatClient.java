@@ -4,6 +4,7 @@ import java.util.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import java.nio.charset.*;
 
 
 public class ChatClient {
@@ -91,10 +92,11 @@ public class ChatClient {
         String[] commands = message.split(" ");
         String command = commands[0];
 
-        return command.equals("/nick") ||
-               command.equals("/join") ||
-               command.equals("/bye")  ||
-               command.equals("/leave");
+        return command.equals("/nick")  ||
+               command.equals("/join")  ||
+               command.equals("/bye")   ||
+               command.equals("/leave") ||
+               command.equals("/priv");
                
 
     }
@@ -112,14 +114,18 @@ public class ChatClient {
          try {
            while(true) {
             String messageFromServer = inFromServer.readLine();
-            printMessage(messageFromServer + "\n");
+            if(messageFromServer!=null) {
+                 byte[] bytes = messageFromServer.getBytes(StandardCharsets.UTF_8);
+                 String utf8String = new String(bytes, StandardCharsets.UTF_8);
+                 printMessage(utf8String + "\n");
+            }
             if(messageFromServer.equals("BYE")) {
                 clientSocket.close();
                 break;
             }
           }
          }
-         catch(IOException e) { System.out.println( e ); }
+         catch(IOException e) { clientSocket.close(); }
     }
 
 

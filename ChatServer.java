@@ -161,12 +161,15 @@ public class ChatServer
     for(int i=0; i<bytes; i++) {
       byte cur = buffer.get(i);
       if(cur == 10) {
-        //System.out.println(messageFromClient);
+        System.out.println(messageFromClient);
         ok = selectOutput(messageFromClient,sc, key);
         messageFromClient = "";
         break;
       }
-      messageFromClient += (char) cur;
+      byte[] aux = new byte[1];
+      aux[0] = cur;
+      String auxStr = new String(aux, StandardCharsets.UTF_8);;
+      messageFromClient += auxStr;
     }
     return ok;
   }
@@ -187,6 +190,19 @@ public class ChatServer
     else if(command.equals("/bye")) {
       sendToOne("BYE\n", sc);
       return false;
+    }
+    else if(command.equals("/priv")) {
+
+      String newMessage = "";
+      System.out.println("heyeyey");
+      int i;
+      for(i=2; i<commands.length-1; i++) {
+       newMessage += commands[i]+" ";
+      }
+
+      newMessage += commands[i];
+
+      handlePriv(commands[1], newMessage, sc, key);
     }
     else
       handleMessage(message, sc, key);
@@ -256,7 +272,6 @@ public class ChatServer
 
     if(message.charAt(0) == '/') {
       message = message.substring(1);
-      System.out.println(message);
     }
 
     if(cl.state == inside) {
@@ -265,6 +280,22 @@ public class ChatServer
     } else {
       sendToOne("ERROR\n", sc);
     }
+  }
+
+  static private void handlePriv(String nick, String message, SocketChannel sc, SelectionKey key) throws IOException{
+    Client cl = getClient(key);
+
+
+
+    if(nicks.contains(nick)) {
+      sendToOne("OK\n",sc);
+      if(message.charAt(0) == '/') {
+        message = message.substring(1);
+      }
+      sendToOther("PRIVATE " + cl.nick + " " + message + "\n",nick);
+    }
+    else 
+      sendToOne("ERROR\n",sc);
   }
 
 
@@ -279,7 +310,6 @@ public class ChatServer
     for (Field f : c.getDeclaredFields()) {
       f.setAccessible(true);
       try {
-        //System.out.println(f.getName() + "= " + f.get(cl));
         if(f.getName().equals("nick")) {
           nick = f.get(cl).toString();
        } else if(f.getName().equals("state")) {
@@ -327,7 +357,24 @@ public class ChatServer
 			}
 		}
   }
+
+  static private void sendToOther(String message, String nick) throws IOException{
+    
+    ByteBuffer msgBuf=ByteBuffer.wrap(message.getBytes());
+    for(SelectionKey key : selector.keys()) {
+			if(key.isValid() && key.channel() instanceof SocketChannel) {
+        Client cl = getClient(key);
+        if(cl.nick.equals(nick)) { //Private Message to Other    
+          SocketChannel sch=(SocketChannel) key.channel();
+          sch.write(msgBuf);
+          msgBuf.rewind();
+          break;
+        }
+      }
+    }
+  }
 }
+
 
 class Client {
   int state;
