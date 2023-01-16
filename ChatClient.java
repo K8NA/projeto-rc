@@ -79,6 +79,7 @@ public class ChatClient {
        new BufferedReader(new
              InputStreamReader(clientSocket.getInputStream()));
 
+
       if(isCommand(message)) {
         outToServer.writeBytes(message + '\n');
       } else if(message.charAt(0) == '/') {
@@ -97,8 +98,6 @@ public class ChatClient {
                command.equals("/bye")   ||
                command.equals("/leave") ||
                command.equals("/priv");
-               
-
     }
 
 
@@ -115,9 +114,7 @@ public class ChatClient {
            while(true) {
             String messageFromServer = inFromServer.readLine();
             if(messageFromServer!=null) {
-                 byte[] bytes = messageFromServer.getBytes(StandardCharsets.UTF_8);
-                 String utf8String = new String(bytes, StandardCharsets.UTF_8);
-                 printMessage(utf8String + "\n");
+                 printMessage(messageFromServer + "\n");
             }
             if(messageFromServer.equals("BYE")) {
                 clientSocket.close();

@@ -13,7 +13,7 @@ public class ChatServer
   static private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
 
   // Decoder for incoming text -- assume UTF-8
-  static private final Charset charset = Charset.forName("UTF8");
+  static private final Charset charset = Charset.forName("ISO_8859_1");
   static private final CharsetDecoder decoder = charset.newDecoder();
 
 
@@ -161,14 +161,13 @@ public class ChatServer
     for(int i=0; i<bytes; i++) {
       byte cur = buffer.get(i);
       if(cur == 10) {
-        System.out.println(messageFromClient);
         ok = selectOutput(messageFromClient,sc, key);
         messageFromClient = "";
         break;
       }
       byte[] aux = new byte[1];
       aux[0] = cur;
-      String auxStr = new String(aux, StandardCharsets.UTF_8);;
+      String auxStr = new String(aux, StandardCharsets.ISO_8859_1);
       messageFromClient += auxStr;
     }
     return ok;
@@ -194,7 +193,6 @@ public class ChatServer
     else if(command.equals("/priv")) {
 
       String newMessage = "";
-      System.out.println("heyeyey");
       int i;
       for(i=2; i<commands.length-1; i++) {
        newMessage += commands[i]+" ";
